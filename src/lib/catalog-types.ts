@@ -1,0 +1,21 @@
+export type CatalogProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  shortDescription: string;
+  description: string;
+  image: string;
+  unit: string;
+  origin: string;
+  halalCert: string;
+  stock: number;
+  sold: number;
+  weight: number;
+  featured: boolean;
+  active: boolean;
+  consumerPrice: number;
+  resellerPrice: number;
+  agentPrice: number;
+  distributorPrice: number;
+};
