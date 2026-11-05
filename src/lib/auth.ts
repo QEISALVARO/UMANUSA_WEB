@@ -2,14 +2,19 @@ import "server-only";
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import { getUserById } from "@/lib/mock-data";
 import {
-  createMockSession,
-  deleteMockSession,
-  findSessionUser,
-} from "@/lib/mock-data";
+  SESSION_TTL_SECONDS,
+  signSessionToken,
+  verifySessionToken,
+} from "@/lib/session-token";
 
 const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE = "umanusa_session";
+
+// Catatan: sesi sekarang stateless (HMAC di cookie) dan tidak lagi
+// disimpan di Map in-memory, sehingga tetap valid lintas restart maupun
+// perpindahan instance server. lookup user tetap lewat mock data.
 
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -26,23 +31,18 @@ export async function verifyPassword(password: string, stored: string) {
 }
 
 export async function createSession(userId: string) {
-  const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  createMockSession(token, userId, expiresAt);
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
+  cookieStore.set(SESSION_COOKIE, signSessionToken(userId), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: expiresAt,
+    maxAge: SESSION_TTL_SECONDS,
   });
 }
 
 export async function destroySession() {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) deleteMockSession(token);
   cookieStore.delete(SESSION_COOKIE);
 }
 
@@ -50,7 +50,9 @@ export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return findSessionUser(token);
+  const userId = verifySessionToken(token);
+  if (!userId) return null;
+  return getUserById(userId) ?? null;
 }
 
 export async function requireUser() {

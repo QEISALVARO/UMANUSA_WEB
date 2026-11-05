@@ -11,30 +11,6 @@ import type {
   WithdrawalStatus,
 } from "./types";
 
-export function createMockSession(token: string, userId: string, expiresAt: Date) {
-  getMockDb().sessions.set(token, {
-    token,
-    userId,
-    expiresAt,
-    createdAt: new Date(),
-  });
-}
-
-export function deleteMockSession(token: string) {
-  getMockDb().sessions.delete(token);
-}
-
-export function findSessionUser(token: string): MockUser | null {
-  const db = getMockDb();
-  const session = db.sessions.get(token);
-  if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
-    db.sessions.delete(token);
-    return null;
-  }
-  return db.users.find((user) => user.id === session.userId) ?? null;
-}
-
 export function registerMockUser(input: {
   name: string;
   email: string;
