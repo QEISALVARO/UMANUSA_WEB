@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function JoinPage() {
   const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
+  if (user) redirect(user.role === "admin" ? "/dashboard/admin" : "/dashboard");
   return (
     <main>
       <section className="bg-[#0d352c] py-14 text-white"><div className="container-wide"><p className="text-[10px] font-bold uppercase tracking-[.22em] text-gold">Formulir registrasi terpadu</p><h1 className="mt-4 max-w-3xl font-serif text-4xl leading-tight sm:text-5xl">Mulai perjalanan berdaya Anda.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-white/60">Buat akun Konsumen atau Reseller. Kenaikan ke Agen dan Distributor mengikuti audit omzet serta persetujuan manual Admin Pusat.</p></div></section>

@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ArrowRight, CheckCircle2, Coins, Package, ShoppingBag, Sparkles, TrendingUp, WalletCards } from "lucide-react";
-import { db } from "@/db";
-import { bonusLedger, orders, users, withdrawals } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { getDashboardStats } from "@/lib/mock-data";
 import { formatCompactRupiah, formatDate, formatRupiah, nextTier, ROLE_LABELS } from "@/lib/commerce";
 import { StatusBadge } from "@/components/order-ui";
 
@@ -15,10 +13,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!user) redirect("/masuk");
   if (user.role === "admin") redirect("/dashboard/admin");
   const { selamat } = await searchParams;
-  const [orderCount] = await db.select({ value: sql<number>`count(*)::int` }).from(orders).where(eq(orders.userId, user.id));
-  const [bonus] = await db.select({ value: sql<number>`coalesce(sum(${bonusLedger.amount}),0)::int` }).from(bonusLedger).where(eq(bonusLedger.userId, user.id));
-  const [withdrawn] = await db.select({ value: sql<number>`coalesce(sum(${withdrawals.amount}),0)::int` }).from(withdrawals).where(and(eq(withdrawals.userId, user.id), inArray(withdrawals.status, ["pending", "paid"])));
-  const recent = await db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)).limit(5);
+  const { orderCount, bonus, withdrawn, recent } = getDashboardStats(user.id);
   const tier = nextTier(user.role);
   const progress = tier?.threshold ? Math.min(100, Math.round((user.totalOmzet / tier.threshold) * 100)) : 100;
   const isPartner = user.role !== "consumer";

@@ -7,7 +7,7 @@ import { ArrowDown, ArrowRight, BadgeCheck, CircleDollarSign, Network, PackageCh
 import { useRef } from "react";
 import { formatCompactRupiah } from "@/lib/commerce";
 
-export function HomeHero({ metrics }: { metrics: { partners: number; products: number; omzet: number; bonus: number } }) {
+export function HomeHero({ metrics, accountHref, accountLabel }: { metrics: { partners: number; products: number; omzet: number; bonus: number }; accountHref: string; accountLabel: string }) {
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
@@ -21,7 +21,7 @@ export function HomeHero({ metrics }: { metrics: { partners: number; products: n
   return (
     <section ref={ref} className="relative min-h-[calc(100svh-108px)] overflow-hidden bg-[#0a342b] text-white">
       <motion.div style={{ y: imageY, scale: imageScale }} className="absolute inset-0">
-        <Image src="/images/umanusa-hero.jpg" alt="Bentang alam Nusantara dan masjid di antara persawahan" fill priority className="object-cover object-center" sizes="100vw" />
+        <Image src="/images/umanusa-mosque-hero.png" alt="Masjid dan lanskap Nusantara" fill priority className="object-cover object-[78%_center] sm:object-[74%_center] lg:object-[70%_center]" sizes="100vw" />
       </motion.div>
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,37,30,.97)_0%,rgba(7,48,38,.86)_43%,rgba(7,43,35,.28)_76%,rgba(7,43,35,.25)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(5,31,27,.72)_0%,transparent_45%)]" />
@@ -40,7 +40,7 @@ export function HomeHero({ metrics }: { metrics: { partners: number; products: n
           </h1>
           <motion.p {...enter(.5)} className="mt-6 max-w-xl text-[15px] leading-7 text-white/70 sm:text-base sm:leading-8">Menghubungkan produk halal, UMKM, dan mitra penjualan dalam satu ekosistem yang amanah. Pusat mengelola produk dan stok—Anda fokus bertumbuh.</motion.p>
           <motion.div {...enter(.6)} className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/gabung" className="button-gold !min-h-[54px] !px-7">Gabung Sekarang <ArrowRight size={18} /></Link>
+            <Link href={accountHref} className="button-gold !min-h-[54px] !px-7">{accountLabel} <ArrowRight size={18} /></Link>
             <Link href="/katalog" className="inline-flex min-h-[54px] items-center justify-center gap-2 rounded-full border border-white/25 px-7 text-sm font-bold text-white transition hover:border-gold hover:text-gold-light">Jelajahi Produk <PackageCheck size={17} /></Link>
           </motion.div>
           <motion.div {...enter(.7)} className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-white/15 pt-6 text-xs text-white/65">

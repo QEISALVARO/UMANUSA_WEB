@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Check, Coins, Crown, FileCheck2, Network, ShoppingBag, Store, TrendingUp, UserCheck, WalletCards, X } from "lucide-react";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { shippingZones } from "@/db/schema";
-import { ensureSeeded } from "@/db/seed";
+import { getActiveShippingZones } from "@/lib/mock-data";
 import { FaqList } from "@/components/faq-list";
 import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
 import { formatRupiah, TIER_RULES } from "@/lib/commerce";
@@ -22,8 +19,7 @@ const faqs = [
 ];
 
 export default async function PartnershipPage() {
-  await ensureSeeded();
-  const zones = await db.select().from(shippingZones).where(eq(shippingZones.active, true));
+  const zones = getActiveShippingZones();
   return (
     <main>
       <section className="relative overflow-hidden bg-[#0d352c] py-20 text-white lg:py-24"><div className="islamic-pattern absolute inset-0 text-white opacity-[0.03]" /><div className="container-wide relative grid gap-10 lg:grid-cols-[1.15fr_.85fr] lg:items-end"><div><p className="text-[10px] font-bold uppercase tracking-[.22em] text-gold">Kemitraan UMANUSA</p><h1 className="mt-5 font-serif text-5xl leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">Tumbuh bersama,<br /><span className="italic text-gold-light">berbagi manfaat.</span></h1></div><div><p className="max-w-lg text-sm leading-7 text-white/60">Mulai sebagai Konsumen atau Reseller, bangun omzet dan jaringan, lalu kembangkan peran Anda. Sistem mencatat kemajuan; Admin menjaga kualitas setiap kenaikan jenjang.</p><Link href="/gabung" className="button-gold mt-7">Daftar Reseller <ArrowRight size={16} /></Link></div></div></section>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useScroll, useSpring } from "motion/react";
 import { ArrowRight, ChevronRight, LayoutDashboard, LogOut, Menu, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { logoutAction } from "@/app/actions";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { useCart } from "@/components/cart-provider";
@@ -41,6 +41,13 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
   }, [pathname]);
   const target = hovered ?? activeIndex;
   const initial = user?.name.trim().charAt(0).toUpperCase() ?? "U";
+  const accountHref = user ? (user.role === "admin" ? "/dashboard/admin" : "/dashboard") : "/gabung";
+  const accountLabel = user ? "Dashboard" : "Gabung Sekarang";
+
+  const closeMenuOnNavigate = (event: ReactMouseEvent<HTMLElement>) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest('a[href^="/"], button')) setMenuOpen(false);
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -48,7 +55,11 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    const closeMenu = () => setMenuOpen(false);
+    window.addEventListener("popstate", closeMenu);
+    return () => window.removeEventListener("popstate", closeMenu);
+  }, []);
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -80,7 +91,7 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
           : "border-transparent bg-[#fbfaf5]",
       )}>
         <div className="container-wide flex h-[74px] items-center justify-between gap-4">
-          <Link href="/" aria-label="UMANUSA Beranda" className="group flex items-center gap-3">
+          <Link href="/" aria-label="UMANUSA Beranda" onClick={closeMenuOnNavigate} className="group flex items-center gap-3">
             <BrandLogo />
             <span className="hidden h-8 w-px bg-navy/10 xl:block" />
             <span className="hidden max-w-[150px] flex-col gap-1 xl:flex">
@@ -157,8 +168,8 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
               </Link>
             )}
 
-            <Link href="/gabung" className="button-primary group hidden !min-h-11 !px-5 !text-[11.5px] md:inline-flex">
-              Gabung Sekarang <ArrowRight size={15} className="transition group-hover:translate-x-0.5" />
+            <Link href={accountHref} className="button-primary group !hidden !min-h-11 !px-5 !text-[11.5px] md:!inline-flex">
+              {accountLabel} <ArrowRight size={15} className="transition group-hover:translate-x-0.5" />
             </Link>
 
             <button
@@ -189,7 +200,7 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
             >
               <div className="relative max-h-[calc(100vh-140px)] overflow-y-auto">
                 <div className="islamic-pattern absolute inset-0 text-emerald-900 opacity-[0.025]" />
-                <nav className="container-wide relative flex flex-col py-5" aria-label="Menu seluler">
+                <nav onClick={closeMenuOnNavigate} className="container-wide relative flex flex-col py-5" aria-label="Menu seluler">
                   <p className="mb-2 text-[9px] font-bold uppercase tracking-[.2em] text-slate-400">Navigasi</p>
                   {links.map((link, index) => {
                     const active = activeIndex === index;
@@ -233,7 +244,7 @@ export function SiteHeader({ user }: { user: { name: string; role: Role } | null
                   </motion.div>
 
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36, duration: 0.35 }} className="mt-3">
-                    <Link href="/gabung" className="button-primary w-full">Gabung Sekarang <ArrowRight size={16} /></Link>
+                    <Link href={accountHref} className="button-primary w-full">{user ? "Buka Dashboard" : "Gabung Sekarang"} <ArrowRight size={16} /></Link>
                     <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-slate-400">
                       <Link href="/kemitraan#faq" className="transition hover:text-emerald-800">Pusat Bantuan</Link>
                       <a href="mailto:salam@umanusa.id" className="transition hover:text-emerald-800">salam@umanusa.id</a>

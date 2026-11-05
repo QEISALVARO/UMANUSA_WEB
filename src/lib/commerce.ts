@@ -9,6 +9,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin Pusat",
 };
 
+export const MIN_WITHDRAWAL = 50_000;
+
 export const PRICE_FIELDS = {
   consumer: "consumerPrice",
   reseller: "resellerPrice",

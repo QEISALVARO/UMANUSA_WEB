@@ -1,11 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
 import { ArrowLeft, BadgeCheck, Banknote, Check, CheckCircle2, Clock3, FileText, MapPin, PackageCheck, ShieldCheck, Truck, XCircle } from "lucide-react";
-import { db } from "@/db";
-import { appSettings, orderItems, orders, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { getBankSettings, getOrderById, getOrderItems, getUserById, isOrderUploadExpired } from "@/lib/mock-data";
 import { formatDate, formatRupiah } from "@/lib/commerce";
 import { ProofUpload } from "@/components/dashboard-controls";
 import { StatusBadge } from "@/components/order-ui";
@@ -26,17 +24,17 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   if (!user) redirect("/masuk");
   const { id } = await params;
   const { baru } = await searchParams;
-  const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  const order = getOrderById(id);
   if (!order || (order.userId !== user.id && user.role !== "admin")) notFound();
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-  const [buyer] = await db.select().from(users).where(eq(users.id, order.userId)).limit(1);
-  const settings = await db.select().from(appSettings).where(inArray(appSettings.key, ["bank_name", "bank_account", "bank_holder"]));
-  const bank = Object.fromEntries(settings.map((item) => [item.key, item.value]));
+  const items = getOrderItems(order.id);
+  const buyer = getUserById(order.userId);
+  if (!buyer) notFound();
+  const bank = getBankSettings();
   const currentStep = order.status === "cancelled" ? -1 : Math.max(0, steps.findIndex((step) => step.key === order.status));
   const nextStatus = order.status === "paid" ? "processing" : order.status === "processing" ? "shipped" : order.status === "shipped" ? "completed" : null;
   const nextLabel = nextStatus === "processing" ? "Mulai Pengemasan" : nextStatus === "shipped" ? "Tandai Sudah Dikirim" : "Tandai Pesanan Selesai";
   const unpaid = ["awaiting_payment", "payment_review"].includes(order.status);
-  const expired = order.expiresAt.getTime() < Date.now() && order.status === "awaiting_payment";
+  const expired = isOrderUploadExpired(order);
   return <div className="space-y-6"><Link href={user.role === "admin" ? "/dashboard/admin?tab=orders" : "/dashboard/pesanan"} className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-emerald-800"><ArrowLeft size={14} />Kembali ke daftar pesanan</Link>{baru && <div className="form-success flex items-center gap-3"><CheckCircle2 size={18} />Pesanan dan tagihan berhasil dibuat. Silakan transfer lalu unggah bukti pembayaran.</div>}<section className="flex flex-col gap-5 rounded-2xl border border-navy/10 bg-white p-6 sm:flex-row sm:items-center sm:justify-between"><div><p className="eyebrow">Detail pesanan</p><h1 className="mt-2 font-serif text-3xl font-bold">{order.invoice}</h1><p className="mt-2 text-[10px] text-slate-500">Dibuat {formatDate(order.createdAt)} · Pembeli {buyer.name}</p></div><StatusBadge status={order.status} /></section>
     {order.status !== "cancelled" && <section className="rounded-2xl border border-navy/10 bg-white p-6"><div className="grid grid-cols-3 gap-y-6 md:grid-cols-6">{steps.map((step, index) => <div key={step.key} className="relative text-center">{index < steps.length - 1 && <span className={`absolute left-[60%] right-[-40%] top-4 hidden h-px md:block ${index < currentStep ? "bg-emerald-700" : "bg-navy/10"}`} />}<span className={`relative mx-auto grid h-8 w-8 place-items-center rounded-full border text-[10px] font-bold ${index <= currentStep ? "border-emerald-700 bg-emerald-700 text-white" : "border-navy/15 bg-white text-slate-400"}`}>{index < currentStep ? <Check size={13} /> : index + 1}</span><p className={`mt-2 text-[9px] leading-4 ${index <= currentStep ? "font-bold text-emerald-900" : "text-slate-400"}`}>{step.label}</p></div>)}</div></section>}
     <div className="grid items-start gap-6 xl:grid-cols-[1fr_360px]"><div className="space-y-6"><section className="overflow-hidden rounded-2xl border border-navy/10 bg-white"><div className="border-b border-navy/10 px-6 py-5"><h2 className="font-serif text-2xl">Produk dipesan</h2></div><div className="divide-y divide-navy/10">{items.map((item) => <div key={item.id} className="flex items-center gap-4 px-6 py-4"><div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-cream"><Image src={item.image} alt={item.productName} fill className="object-cover" sizes="64px" /></div><div className="min-w-0 flex-1"><p className="text-xs font-bold">{item.productName}</p><p className="mt-1 text-[10px] text-slate-500">{item.quantity} × {formatRupiah(item.unitPrice)}</p>{item.retailPrice > item.unitPrice && <p className="mt-1 text-[9px] text-emerald-700">Harga mitra · retail {formatRupiah(item.retailPrice)}</p>}</div><p className="text-sm font-bold">{formatRupiah(item.lineTotal)}</p></div>)}</div><div className="space-y-3 bg-cream/40 px-6 py-5 text-xs"><div className="flex justify-between text-slate-500"><span>Subtotal produk</span><span>{formatRupiah(order.subtotal)}</span></div>{order.savings > 0 && <div className="flex justify-between text-emerald-700"><span>Penghematan harga mitra</span><span>−{formatRupiah(order.savings)}</span></div>}<div className="flex justify-between text-slate-500"><span>Ongkir · {order.shippingZone}</span><span>{formatRupiah(order.shipping)}</span></div><div className="flex items-end justify-between border-t border-navy/10 pt-3"><strong>Total tagihan</strong><strong className="font-serif text-2xl">{formatRupiah(order.total)}</strong></div></div></section><section className="rounded-2xl border border-navy/10 bg-white p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-emerald-700" size={18} /><div><h2 className="text-sm font-bold">Alamat penerima</h2><p className="mt-3 text-xs font-semibold">{order.recipientName} · {order.phone}</p><p className="mt-2 text-xs leading-6 text-slate-500">{order.address}, {order.city}, {order.province} {order.postalCode}</p>{order.notes && <p className="mt-3 rounded-lg bg-cream/60 p-3 text-[10px] text-slate-500">Catatan: {order.notes}</p>}</div></div>{order.trackingNumber && <div className="mt-5 flex items-center gap-3 border-t border-navy/10 pt-5"><Truck className="text-emerald-700" size={18} /><div><p className="text-[10px] text-slate-400">Nomor resi / referensi kirim</p><p className="mt-1 text-xs font-bold">{order.trackingNumber}</p></div></div>}</section>{order.adminNote && <p className="rounded-xl border border-gold/20 bg-[#fff8e7] p-4 text-xs leading-6 text-[#795b16]"><strong>Catatan Admin:</strong> {order.adminNote}</p>}</div>

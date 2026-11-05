@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import { desc, eq } from "drizzle-orm";
 import { BadgeCheck, PackageCheck, ShieldCheck } from "lucide-react";
-import { db } from "@/db";
-import { products } from "@/db/schema";
-import { ensureSeeded } from "@/db/seed";
+import { getActiveProducts } from "@/lib/mock-data";
 import { CatalogBrowser } from "@/components/catalog-browser";
 
 export const metadata: Metadata = { title: "Katalog Produk", description: "Produk halal dan UMKM pilihan dengan harga khusus mitra UMANUSA." };
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage() {
-  await ensureSeeded();
-  const catalog = await db.select().from(products).where(eq(products.active, true)).orderBy(desc(products.featured), desc(products.sold));
+  const catalog = getActiveProducts();
   return (
     <main>
       <section className="relative overflow-hidden bg-[#0d352c] py-16 text-white lg:py-20">

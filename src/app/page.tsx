@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, BookOpenCheck, Building2, Check, Coins, GraduationCap, HandHeart, Landmark, Leaf, Network, PackageCheck, ShieldCheck, ShoppingBag, Sparkles, Store, Truck, Upload, UsersRound, WalletCards } from "lucide-react";
-import { desc, inArray, ne, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { bonusLedger, orders, products, users } from "@/db/schema";
-import { ensureSeeded } from "@/db/seed";
+import { getCurrentUser } from "@/lib/auth";
+import { getHomeData } from "@/lib/mock-data";
 import { HomeHero } from "@/components/home-hero";
 import { ProductCard } from "@/components/product-card";
 import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
@@ -35,16 +33,14 @@ const roadmap = [
 ];
 
 export default async function HomePage() {
-  await ensureSeeded();
-  const featured = await db.select().from(products).where(sql`${products.active} = true`).orderBy(desc(products.featured), desc(products.sold)).limit(4);
-  const [partnerMetric] = await db.select({ value: sql<number>`count(*)::int` }).from(users).where(ne(users.role, "admin"));
-  const [omzetMetric] = await db.select({ value: sql<number>`coalesce(sum(${orders.subtotal}), 0)::int` }).from(orders).where(inArray(orders.status, ["paid", "processing", "shipped", "completed"]));
-  const [bonusMetric] = await db.select({ value: sql<number>`coalesce(sum(${bonusLedger.amount}), 0)::int` }).from(bonusLedger);
-  const [productMetric] = await db.select({ value: sql<number>`count(*)::int` }).from(products).where(sql`${products.active} = true`);
+  const { featured, metrics } = getHomeData();
+  const user = await getCurrentUser();
+  const accountHref = user ? (user.role === "admin" ? "/dashboard/admin" : "/dashboard") : "/gabung";
+  const accountLabel = user ? "Buka Dashboard" : "Gabung Sekarang";
 
   return (
     <main>
-      <HomeHero metrics={{ partners: partnerMetric.value, products: productMetric.value, omzet: omzetMetric.value, bonus: bonusMetric.value }} />
+      <HomeHero metrics={metrics} accountHref={accountHref} accountLabel={accountLabel} />
 
       <section className="border-b border-navy/10 bg-cream/65 py-5">
         <div className="container-wide flex items-center justify-between gap-7 overflow-x-auto">
@@ -122,7 +118,7 @@ export default async function HomePage() {
 
       <section className="bg-paper py-20">
         <div className="container-wide">
-          <Reveal><div className="relative overflow-hidden rounded-[2rem] bg-emerald-950 px-6 py-14 text-center text-white sm:px-12 lg:py-20"><div className="islamic-pattern absolute inset-0 text-white opacity-[0.035]" /><div className="absolute -left-24 -top-24 h-72 w-72 rounded-full border border-gold/20" /><div className="absolute -bottom-32 -right-20 h-96 w-96 rounded-full border border-gold/20" /><div className="relative mx-auto max-w-2xl"><span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-gold/15 text-gold"><Network size={22} /></span><p className="mt-6 text-[10px] font-bold uppercase tracking-[.2em] text-gold">Langkah awal Anda bermakna</p><h2 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">Bukan hanya berjualan.<br /><span className="italic text-gold-light">Mari saling menguatkan.</span></h2><p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-white/60">Daftar sebagai Konsumen atau Reseller hari ini. Kembangkan omzet, bangun jaringan, dan tumbuh melalui jenjang kemitraan UMANUSA.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Link href="/gabung" className="button-gold">Gabung Sekarang <ArrowRight size={16} /></Link><Link href="/kemitraan" className="inline-flex min-h-[46px] items-center justify-center rounded-full border border-white/20 px-6 text-xs font-bold transition hover:border-gold">Bandingkan Jenjang</Link></div><p className="mt-6 flex items-center justify-center gap-2 text-[10px] text-white/45"><Check size={12} className="text-gold" />Tanpa subdomain · Semua aktivitas aman di umanusa.id</p></div></div></Reveal>
+          <Reveal><div className="relative overflow-hidden rounded-[2rem] bg-emerald-950 px-6 py-14 text-center text-white sm:px-12 lg:py-20"><div className="islamic-pattern absolute inset-0 text-white opacity-[0.035]" /><div className="absolute -left-24 -top-24 h-72 w-72 rounded-full border border-gold/20" /><div className="absolute -bottom-32 -right-20 h-96 w-96 rounded-full border border-gold/20" /><div className="relative mx-auto max-w-2xl"><span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-gold/15 text-gold"><Network size={22} /></span><p className="mt-6 text-[10px] font-bold uppercase tracking-[.2em] text-gold">Langkah awal Anda bermakna</p><h2 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">Bukan hanya berjualan.<br /><span className="italic text-gold-light">Mari saling menguatkan.</span></h2><p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-white/60">Daftar sebagai Konsumen atau Reseller hari ini. Kembangkan omzet, bangun jaringan, dan tumbuh melalui jenjang kemitraan UMANUSA.</p><div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Link href={accountHref} className="button-gold">{accountLabel} <ArrowRight size={16} /></Link><Link href="/kemitraan" className="inline-flex min-h-[46px] items-center justify-center rounded-full border border-white/20 px-6 text-xs font-bold transition hover:border-gold">Bandingkan Jenjang</Link></div><p className="mt-6 flex items-center justify-center gap-2 text-[10px] text-white/45"><Check size={12} className="text-gold" />Tanpa subdomain · Semua aktivitas aman di umanusa.id</p></div></div></Reveal>
         </div>
       </section>
     </main>

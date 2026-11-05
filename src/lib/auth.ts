@@ -2,9 +2,11 @@ import "server-only";
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
-import { and, eq, gt } from "drizzle-orm";
-import { db } from "@/db";
-import { sessions, users } from "@/db/schema";
+import {
+  createMockSession,
+  deleteMockSession,
+  findSessionUser,
+} from "@/lib/mock-data";
 
 const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE = "umanusa_session";
@@ -26,7 +28,7 @@ export async function verifyPassword(password: string, stored: string) {
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  await db.insert(sessions).values({ token, userId, expiresAt });
+  createMockSession(token, userId, expiresAt);
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -40,7 +42,7 @@ export async function createSession(userId: string) {
 export async function destroySession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) await db.delete(sessions).where(eq(sessions.token, token));
+  if (token) deleteMockSession(token);
   cookieStore.delete(SESSION_COOKIE);
 }
 
@@ -48,13 +50,7 @@ export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const result = await db
-    .select({ user: users })
-    .from(sessions)
-    .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, new Date())))
-    .limit(1);
-  return result[0]?.user ?? null;
+  return findSessionUser(token);
 }
 
 export async function requireUser() {

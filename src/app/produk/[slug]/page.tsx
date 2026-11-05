@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq, ne } from "drizzle-orm";
 import { ArrowLeft, BadgeCheck, Check, MapPin, PackageCheck, Scale, ShieldCheck, Truck } from "lucide-react";
-import { db } from "@/db";
-import { products } from "@/db/schema";
-import { ensureSeeded } from "@/db/seed";
+import { findProductBySlug, getRelatedProducts } from "@/lib/mock-data";
 import { ProductCard } from "@/components/product-card";
 import { ProductPurchase } from "@/components/product-purchase";
 
@@ -14,18 +11,15 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  await ensureSeeded();
-  const [product] = await db.select().from(products).where(eq(products.slug, slug)).limit(1);
+  const product = findProductBySlug(slug);
   return { title: product?.name ?? "Produk", description: product?.shortDescription };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await ensureSeeded();
-  const [product] = await db.select().from(products).where(and(eq(products.slug, slug), eq(products.active, true))).limit(1);
-  if (!product) notFound();
-  const related = await db.select().from(products).where(and(eq(products.category, product.category), ne(products.id, product.id), eq(products.active, true))).limit(3);
-  const fallback = related.length ? related : await db.select().from(products).where(and(ne(products.id, product.id), eq(products.active, true))).limit(3);
+  const product = findProductBySlug(slug);
+  if (!product || !product.active) notFound();
+  const fallback = getRelatedProducts(product);
   return (
     <main>
       <div className="container-wide py-6"><Link href="/katalog" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-emerald-800"><ArrowLeft size={14} />Kembali ke katalog</Link></div>

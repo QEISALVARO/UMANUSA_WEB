@@ -4,11 +4,69 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { CatalogProduct } from "@/lib/catalog-types";
 import { formatRupiah, getPrice, ROLE_LABELS, type Role } from "@/lib/commerce";
 
 type CartItem = { product: CatalogProduct; quantity: number };
+type CartUpdater = (current: CartItem[]) => CartItem[];
+
+const CART_STORAGE_KEY = "umanusa_cart_v1";
+const EMPTY_CART: CartItem[] = [];
+const cartListeners = new Set<() => void>();
+
+function readStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return EMPTY_CART;
+  try {
+    const saved = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!saved) return EMPTY_CART;
+    const parsed: unknown = JSON.parse(saved);
+    return Array.isArray(parsed) ? (parsed as CartItem[]) : EMPTY_CART;
+  } catch {
+    window.localStorage.removeItem(CART_STORAGE_KEY);
+    return EMPTY_CART;
+  }
+}
+
+let cartSnapshot: CartItem[] = readStoredCart();
+
+function subscribeToCart(listener: () => void) {
+  cartListeners.add(listener);
+  return () => { cartListeners.delete(listener); };
+}
+
+function getCartSnapshot() {
+  return cartSnapshot;
+}
+
+function getServerCartSnapshot() {
+  return EMPTY_CART;
+}
+
+function updateCart(updater: CartUpdater) {
+  cartSnapshot = updater(cartSnapshot);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartSnapshot));
+    } catch {
+      // Storage can be unavailable (private mode/quota); keep the in-memory cart working.
+    }
+  }
+  for (const listener of cartListeners) listener();
+}
+
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getHydratedSnapshot() {
+  return true;
+}
+
+function getServerHydratedSnapshot() {
+  return false;
+}
+
 type CartContextValue = {
   items: CartItem[];
   role: Role;
@@ -33,24 +91,10 @@ export function useCart() {
 }
 
 export function CartProvider({ children, role, userName }: { children: ReactNode; role: Role; userName?: string }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const items = useSyncExternalStore(subscribeToCart, getCartSnapshot, getServerCartSnapshot);
+  const hydrated = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerHydratedSnapshot);
   const [isOpen, setIsOpen] = useState(false);
   const [toast, setToast] = useState("");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("umanusa_cart_v1");
-      if (saved) setItems(JSON.parse(saved) as CartItem[]);
-    } catch {
-      localStorage.removeItem("umanusa_cart_v1");
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (hydrated) localStorage.setItem("umanusa_cart_v1", JSON.stringify(items));
-  }, [items, hydrated]);
 
   useEffect(() => {
     if (!toast) return;
@@ -65,7 +109,7 @@ export function CartProvider({ children, role, userName }: { children: ReactNode
 
   const addItem = useCallback((product: CatalogProduct, quantity = 1) => {
     if (product.stock < 1) return;
-    setItems((current) => {
+    updateCart((current) => {
       const existing = current.find((item) => item.product.id === product.id);
       if (existing) {
         return current.map((item) => item.product.id === product.id
@@ -78,7 +122,7 @@ export function CartProvider({ children, role, userName }: { children: ReactNode
   }, []);
 
   const updateQuantity = useCallback((id: string, quantity: number) => {
-    setItems((current) => current.map((item) => item.product.id === id
+    updateCart((current) => current.map((item) => item.product.id === id
       ? { ...item, quantity: Math.max(1, Math.min(quantity, item.product.stock)) }
       : item));
   }, []);
@@ -97,8 +141,8 @@ export function CartProvider({ children, role, userName }: { children: ReactNode
       setIsOpen,
       addItem,
       updateQuantity,
-      removeItem: (id) => setItems((current) => current.filter((item) => item.product.id !== id)),
-      clearCart: () => setItems([]),
+      removeItem: (id) => updateCart((current) => current.filter((item) => item.product.id !== id)),
+      clearCart: () => updateCart(() => []),
     };
   }, [items, role, hydrated, isOpen, addItem, updateQuantity]);
 
